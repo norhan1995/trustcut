@@ -1,0 +1,1 @@
+import type {Metadata} from "next";import "./globals.css";export const metadata:Metadata={title:"TrustCut — Agent authority lab",description:"Prove identity. Delegate narrowly. Cut authority live.",icons:{icon:"/favicon.svg"}};export default function Layout({children}:Readonly<{children:React.ReactNode}>){return <html lang="en"><body>{children}</body></html>;}

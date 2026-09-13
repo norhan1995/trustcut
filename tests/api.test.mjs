@@ -1,0 +1,18 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+import ts from 'typescript';
+const sql=new DatabaseSync(':memory:');sql.exec(readFileSync(new URL('../drizzle/0000_chief_solo.sql',import.meta.url),'utf8'));
+globalThis.__api_db={prepare(q){return {bind(...p){return {async first(){return sql.prepare(q).get(...p)||null},async run(){const r=sql.prepare(q).run(...p);return {meta:{changes:Number(r.changes)}};}};}};}};
+const compile=s=>'data:text/javascript;base64,'+Buffer.from(ts.transpileModule(s,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText).toString('base64');
+const repo=compile(readFileSync(new URL('../lib/repository.ts',import.meta.url),'utf8').replace('import {env} from "cloudflare:workers";','const env={DB:globalThis.__api_db};'));
+const route=readFileSync(new URL('../app/api/lab/route.ts',import.meta.url),'utf8').replaceAll('@/lib/engine.mjs',new URL('../lib/engine.mjs',import.meta.url).href).replaceAll('@/lib/crypto.mjs',new URL('../lib/crypto.mjs',import.meta.url).href).replace('@/lib/repository',repo);
+const {GET,POST}=await import(compile(route));
+async function call(body,cookie='',extra={}){const r=await POST(new Request('https://trustcut.test/api/lab',{method:'POST',headers:{'Content-Type':'application/json',Cookie:cookie,...extra},body:JSON.stringify(body)}));return {status:r.status,headers:r.headers,body:await r.json()};}
+async function connect(){const r=await call({op:'connect'});assert.equal(r.status,200);return r.headers.get('set-cookie').split(';')[0];}
+test('API gives isolated secure sessions without private keys',async()=>{const a=await call({op:'connect'}),b=await call({op:'connect'});assert.match(a.headers.get('set-cookie'),/HttpOnly; SameSite=Strict; Max-Age=86400; Secure/);assert.notEqual(a.body.state.id,b.body.state.id);assert.equal(JSON.stringify(a.body).includes('privateJwk'),false);assert.equal((await GET(new Request('https://trustcut.test/api/lab'))).status,401);});
+test('API rejects null, invalid amounts, unknown operations and foreign origins',async()=>{const c=await connect();assert.equal((await call(null,c)).status,400);assert.equal((await call({op:'prepare',amountCents:1.2},c)).status,400);assert.equal((await call({op:'unknown'},c)).status,400);assert.equal((await call({op:'reset'},c,{Origin:'https://attacker.test'})).status,403);});
+test('API concurrent execution commits at most once and preserves budget',async()=>{const c=await connect(),p=await call({op:'prepare'},c),id=p.body.state.pending.requestId;const results=await Promise.all(Array.from({length:4},()=>call({op:'execute',requestId:id},c)));assert.ok(results.every(r=>[200,409].includes(r.status)));const final=await call({op:'connect'},c);assert.equal(final.body.state.ledger.length,1);assert.equal(final.body.state.spentCents,18000);});
+test('API refuses approval for a replaced request',async()=>{const c=await connect(),p=await call({op:'prepare',amountCents:25000},c);assert.equal(p.body.state.lastDecision.verdict,'ESCALATE');await call({op:'prepare',amountCents:26000},c);assert.equal((await call({op:'approve',requestId:p.body.state.pending.requestId},c)).status,409);});
+test('API prepare revoke execute denies without adding an order',async()=>{const c=await connect(),p=await call({op:'prepare'},c);await call({op:'revoke'},c);const r=await call({op:'execute',requestId:p.body.state.pending.requestId},c);assert.equal(r.status,200);assert.equal(r.body.state.lastDecision.code,'AUTHORITY_REVOKED');assert.equal(r.body.state.ledger.length,0);});

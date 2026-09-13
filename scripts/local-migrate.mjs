@@ -1,0 +1,10 @@
+import {DatabaseSync} from "node:sqlite";
+import {readdirSync,readFileSync,existsSync} from "node:fs";
+import {join} from "node:path";
+const directory=".wrangler/state/v3/d1/miniflare-D1DatabaseObject";
+if(!existsSync(directory))throw Error("Start the local preview once so its local database exists.");
+const files=readdirSync(directory).filter(x=>x.endsWith(".sqlite")&&x!=="metadata.sqlite");
+if(files.length!==1)throw Error("Expected exactly one local D1 database; inspect before migrating.");
+const db=new DatabaseSync(join(directory,files[0]));
+if(!db.prepare("SELECT name FROM sqlite_master WHERE name='sandboxes'").get())db.exec(readFileSync("drizzle/0000_chief_solo.sql","utf8"));
+console.log("Local sandbox schema ready. No remote database changed.");
