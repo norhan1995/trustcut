@@ -74,3 +74,8 @@ Replace the last two arguments with those separately pinned DIDs. Do not accept 
 The sandbox operator holds every private key. This is a working reference implementation of enforcement semantics, **not** independent organizational custody, external purchasing, a global reputation network, or a claim of full W3C/UCAN conformance. Historical evidence does not prove current authorization. See the security document before extending the prototype.
 
 Built with Codex for research, architecture, implementation, and tests. Human product direction: Norhan. Cryptographic decisions are deterministic; no model participates in authorization.
+
+## Author
+
+**Norhan Rifaie**  
+[Portfolio](https://norhan-rifaie-portfolio-t6s0kg.v2.appdeploy.ai/) · [GitHub](https://github.com/norhan1995)
