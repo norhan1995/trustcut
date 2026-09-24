@@ -1,5 +1,7 @@
 # TrustCut — know when trust ends
 
+[![CI](https://github.com/norhan1995/trustcut/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/norhan1995/trustcut/actions/workflows/ci.yml)
+
 A cryptographic authority lab for **The Agent That Earns Trust**, DOO Builders League.
 
 **The demo:** a buyer executes a valid $180 order. A second request passes verification. Its principal revokes the parent mandate. The same signed request is denied at execution; both descendant agents lose that authority. Export the signed evidence and verify it independently.
